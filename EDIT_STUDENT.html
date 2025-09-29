@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Student Fee Management — Local + Firebase Sync</title>
+<link rel="shortcut icon" href="SADR.png" type="image/x-icon" />
+<style>
+body {
+font-family: Arial, sans-serif;
+background: #f0f4f8;
+margin: 0;
+padding: 0;
+}
+/* History Modal Responsive */
+#historyModal .modal-box {
+max-width: 90%;
+/* Mobile screen fit */
+width: 100%;
+max-height: 80vh;
+/* Modal height limited */
+overflow-y: auto;
+/* Scroll inside modal if too long */
+padding: 16px;
+}
+
+#historyModal table {
+width: 100%;
+min-width: 300px;
+/* Table min width for small screens */
+border-collapse: collapse;
+overflow-x: auto;
+display: block;
+/* Make table scrollable horizontally */
+}
+
+#historyModal th, #historyModal td {
+padding: 8px;
+text-align: left;
+border-bottom: 1px solid #eee;
+font-size: 14px;
+}
+
+#historyModal th {
+background-color: #007bff;
+color: white;
+position: sticky;
+top: 0;
+z-index: 1;
+}
+.card {
+background: #fff;
+padding: 18px;
+border-radius: 8px;
+box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+}
+.container {
+max-width: 1200px;
+margin: 20px auto;
+padding: 20px;
+}
+h1 {
+margin: 0 0 12px 0;
+color: #222;
+}
+form {
+background: #fff;
+padding: 18px;
+border-radius: 8px;
+box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+}
+input, select, button, textarea {
+padding: 8px;
+margin: 6px 0;
+width: 100%;
+box-sizing: border-box;
+border-radius: 6px;
+border: 1px solid #ccd6e0;
+}
+.row {
+display: flex;
+gap: 12px;
+flex-wrap: wrap;
+}
+.col-3 {
+flex: 1 1 32%;
+min-width: 180px;
+}
+.col-2 {
+flex: 1 1 48%;
+min-width: 220px;
+}
+button {
+background: #007bff;
+color: white;
+border: none;
+cursor: pointer;
+}
+button.secondary {
+background: #6c757d;
+}
+button.warn {
+background: #dc3545;
+}
+.filter-container {
+margin: 14px 0;
+display: flex;
+gap: 10px;
+align-items: center;
+flex-wrap: wrap;
+}
+.table-container {
+overflow: auto;
+margin-top: 18px;
+background: #fff;
+border-radius: 8px;
+box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+}
+table {
+width: 100%;
+min-width: 900px;
+border-collapse: collapse;
+}
+th, td {
+padding: 10px;
+border-bottom: 1px solid #eee;
+text-align: center;
+}
+th {
+background: #007bff;
+color: #fff;
+position: sticky;
+top: 0;
+z-index: 1;
+}
+tfoot td {
+font-weight: 600;
+text-align: left;
+padding: 12px;
+}
+.actions button {
+margin: 4px;
+padding: 6px 8px;
+font-size: 13px;
+}
+.modal {
+display: none;
+position: fixed;
+left: 0;
+top: 0;
+width: 100%;
+height: 100%;
+background: rgba(0,0,0,0.45);
+align-items: center;
+justify-content: center;
+z-index: 999;
+}
+.modal.open {
+display: flex;
+}
+.modal-box {
+background: #fff;
+border-radius: 8px;
+padding: 16px;
+max-width: 520px;
+width: 100%;
+box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+.modal h3 {
+margin-top: 0;
+}
+.small {
+font-size: 13px;
+color: #666;
+margin-top: 4px;
+}
+.status {
+margin-left: 8px;
+font-weight: 600;
+}
+.sync-indicator {
+display: inline-block;
+padding: 6px 10px;
+border-radius: 999px;
+font-weight: 600;
+color: #fff;
+}
+.sync-on {
+background: #198754;
+}
+.sync-off {
+background: #6c757d;
+}
+textarea {
+min-height: 120px;
+font-family: monospace;
+}
+.note {
+font-size: 13px;
+color: #444;
+margin: 8px 0 0 0;
+}
+.modal {
+display: none;
+position: fixed;
+left: 0;
+top: 0;
+width: 100%;
+height: 100%;
+background: rgba(0,0,0,0.45);
+align-items: center;
+justify-content: center;
+z-index: 10000;
+/* increase this */
+}
+</style>
+</head>
+<body>
+<!-- Add this at the very top of your <body> -->
+<div id="loginOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;">
+<div style="background:#fff;padding:24px;border-radius:8px;max-width:360px;width:90%;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+<h2 style="margin-top:0;text-align:center;">Login</h2>
+
+<div style="position: relative; display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+<input type="password" id="loginPassword" placeholder="Enter password" style="flex:1;padding:8px;border-radius:6px;border:1px solid #ccd6e0;">
+<span id="toggleEye" style="cursor:pointer;font-size:18px;">👁️</span>
+</div>
+
+<button id="loginBtn" style="width:100%;padding:10px;background:#007bff;color:#fff;border:none;border-radius:6px;cursor:pointer;">Login</button>
+<p style="margin-top:12px;font-size:13px;text-align:center;color:#555;cursor:pointer;" id="forgotPassword">
+Forgot password?
+</p>
+</div>
+</div>
+
+<!-- Change Password Modal -->
+<div id="changePasswordModal" class="modal" aria-hidden="true">
+<div class="modal-box">
+<h3>Change Password</h3>
+<p class="small">
+Enter OTP sent to your number
+</p>
+<input type="text" id="otpInput" placeholder="Enter OTP">
+
+<p class="small" style="margin-top:12px;">
+New Password
+</p>
+<div style="position: relative; display:flex; align-items:center; gap:8px;">
+<input type="password" id="newPassword" placeholder="New Password" style="flex:1;">
+<span id="toggleEyeNew" style="cursor:pointer;font-size:18px;">👁️</span>
+</div>
+
+<div style="display:flex;gap:8px;margin-top:12px;">
+<button onclick="confirmPasswordChange()">Change Password</button>
+<button class="secondary" onclick="closeModal('changePasswordModal')">Cancel</button>
+</div>
+<p id="changePassMsg" class="small"></p>
+</div>
+</div>
+
+<!-- Logout button (anywhere on your main page) -->
+<button id="logoutBtn" style="position: fixed; right:14px; bottom:14px; left:20px;
+background:#fff; color:#111;
+border:1px solid #e6e9ef;
+padding:8px 10px;
+border-radius:8px;
+cursor:pointer;
+font-size:13px;
+z-index:9998;">Logout</button>
+
+
+<div class="container">
+<div class="card">
+<h1>Student Fee Management</h1>
+</div>
+<br />
+<br />
+
+<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+<div>
+<span>Sync: </span>
+<span id="syncBadge" class="sync-indicator sync-off">Local only</span>
+</div>
+<div style="margin-left:auto;">
+<button onclick="openModal('firebaseModal')" class="secondary">Connect to Firebase</button>
+<button onclick="exportToExcel()">Export CSV</button>
+<button onclick="generateAllPDF()">Download All PDF</button>
+</div>
+</div>
+
+<!-- Add / Edit form -->
+<form id="studentForm">
+<h2 id="formTitle">Add New Student</h2>
+<input type="hidden" id="studentId">
+
+<div class="row">
+<div class="col-3">
+<label for="name">Student Name</label>
+<input id="name" placeholder="Student Name" required>
+</div>
+<div class="col-3">
+<label for="rollNo">Roll Number</label>
+<input id="rollNo" placeholder="Roll Number" required>
+</div>
+<div class="col-3">
+<label for="className">Class</label>
+<select id="className" required>
+<option value="">Select Class</option>
+<option>+3 1st Year</option>
+<option>+3 2nd Year</option>
+<option>+3 Final Year</option>
+<option>+2 1st Year</option>
+<option>+2 2nd Year</option>
+</select>
+</div>
+<div class="col-3">
+<label for="parentName">Parent Name</label>
+<input id="parentName" placeholder="Parent Name" required>
+</div>
+<div class="col-3">
+<label for="contactNumber">Contact Number</label>
+<input id="contactNumber" placeholder="Contact Number" required>
+</div>
+<div class="col-3">
+<label for="applicationType">Applied Applications</label>
+<!-- Multi-select part -->
+<div id="multiSelect" style="border:1px solid #ccd6e0;border-radius:6px;padding:6px;min-height:40px;display:flex;flex-wrap:wrap;gap:6px;cursor:pointer;position:relative;">
+<span style="flex:1;color:#777;">Tap to select...</span>
+</div>
+
+<select id="applications" multiple style="display:none;">
+<option value="Scholarship Applied">Scholarship Applied</option>
+<option value="Income Certificate Applied">Income Certificate Applied</option>
+<option value="Caste Certificate Applied">Caste Certificate Applied</option>
+<option value="Resident Certificate Applied">Resident Certificate Applied</option>
+<option value="Other">Other</option>
+</select>
+
+<div id="dropdown" style="display:none;position:absolute;background:#fff;border:1px solid #ccd6e0;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.1);margin-top:4px;z-index:1000;">
+<label style="display:block;padding:6px;"><input type="checkbox" value="Scholarship Applied"> Scholarship Applied</label>
+<label style="display:block;padding:6px;"><input type="checkbox" value="Income Certificate Applied"> Income Certificate Applied</label>
+<label style="display:block;padding:6px;"><input type="checkbox" value="Caste Certificate Applied"> Caste Certificate Applied</label>
+<label style="display:block;padding:6px;"><input type="checkbox" value="Resident Certificate Applied"> Resident Certificate Applied</label>
+<label style="display:block;padding:6px;"><input type="checkbox" value="Other"> Other</label>
+</div>
+
+<script>
+const box = document.getElementById("multiSelect");
+const dropdown = document.getElementById("dropdown");
+const select = document.getElementById("applications");
+
+// toggle dropdown on click
+box.addEventListener("click", (e) => {
+e.stopPropagation();
+dropdown.style.display = dropdown.style.display === "block" ? "none": "block";
+const rect = box.getBoundingClientRect();
+dropdown.style.position = "absolute";
+dropdown.style.top = rect.bottom + window.scrollY + "px";
+dropdown.style.left = rect.left + window.scrollX + "px";
+dropdown.style.width = rect.width + "px";
+});
+
+// close dropdown when clicking outside
+document.addEventListener("click", (e) => {
+if (!box.contains(e.target) && !dropdown.contains(e.target)) {
+dropdown.style.display = "none";
+}
+});
+
+// handle selection
+function updateMultiSelectDisplay(values) {
+box.innerHTML = "";
+const allCheckboxes = dropdown.querySelectorAll("input[type=checkbox]");
+allCheckboxes.forEach(cb => cb.checked = false);
+
+if (!values || values.length === 0) {
+box.innerHTML = '<span style="flex:1;color:#777;">Tap to select...</span>';
+return;
+}
+values.forEach(v => {
+const tag = document.createElement("span");
+tag.textContent = v;
+tag.style.cssText = "background:#007bff;color:#fff;padding:4px 8px;border-radius:12px;font-size:13px;";
+box.appendChild(tag);
+
+const cb = Array.from(allCheckboxes).find(c => c.value === v);
+if (cb) cb.checked = true;
+});
+}
+
+// checkbox change event
+dropdown.querySelectorAll("input[type=checkbox]").forEach(cb => {
+cb.addEventListener("change", () => {
+const selected = Array.from(dropdown.querySelectorAll("input:checked")).map(c => c.value);
+updateMultiSelectDisplay(selected);
+
+Array.from(select.options).forEach(opt => {
+opt.selected = selected.includes(opt.value);
+});
+});
+});
+
+// Edit student
+function editStudent(id) {
+const s = students.find(x => x.id === id);
+if (!s) return;
+
+document.getElementById('studentId').value = s.id;
+document.getElementById('name').value = s.name;
+document.getElementById('rollNo').value = s.rollNo;
+document.getElementById('className').value = s.className;
+document.getElementById('parentName').value = s.parentName;
+document.getElementById('contactNumber').value = s.contactNumber;
+document.getElementById('totalAmount').value = s.totalAmount;
+document.getElementById('paidAmount').value = s.paidAmount;
+document.getElementById('formTitle').innerText = 'Edit Student';
+
+// Multi-select applications update
+const apps = s.applicationType.split(', ').filter(Boolean);
+updateMultiSelectDisplay(apps);
+
+const select = document.getElementById('applications');
+Array.from(select.options).forEach(opt => {
+opt.selected = apps.includes(opt.value);
+});
+}
+</script>
+</div>
+<div class="col-3">
+<label for="totalAmount">Total Amount</label>
+<input id="totalAmount" type="number" placeholder="Total Amount" min="0" required>
+</div>
+<div class="col-3">
+<label for="paidAmount">Paid Amount</label>
+<input id="paidAmount" type="number" placeholder="Paid Amount" min="0">
+</div>
+</div>
+
+<div style="display:flex;gap:10px;margin-top:8px;">
+<button type="submit">Save Student</button>
+<button type="button" class="secondary" onclick="resetForm()">Reset</button>
+</div>
+<div class="note">
+Tip: Add an initial paid amount to create the first payment entry automatically.
+</div>
+</form>
+
+<!-- Filters -->
+<div class="filter-container">
+<input id="searchInput" placeholder="Search by name, roll, class..." onkeyup="applyFilters()" style="flex:1;">
+<select id="statusFilter" onchange="applyFilters()" style="width:170px;">
+<option value="all">All</option><option value="paid">Paid</option><option value="partial">Partial</option><option value="pending">Pending</option>
+</select>
+<button onclick="clearAllData()" class="warn">Clear All Data</button>
+</div>
+
+<!-- Table -->
+<div class="table-container">
+<table id="studentTable" role="table" aria-label="student table">
+<thead>
+<tr>
+<th>Name</th><th>Roll No</th><th>Class</th><th>Parent</th><th>Contact</th><th>Application</th>
+<th>Total</th><th>Paid</th><th>Remaining</th><th>Actions</th>
+</tr>
+</thead>
+<tbody></tbody>
+<tfoot>
+<tr>
+<td colspan="6">Total Students: <span id="totalStudents">0</span></td>
+<td colspan="4">Total Collected: ₹<span id="totalCollected">0</span> — Pending: ₹<span id="totalPending">0</span></td>
+</tr>
+</tfoot>
+</table>
+</div>
+</div>
+
+<!-- Payment Modal -->
+<div id="paymentModal" class="modal" aria-hidden="true">
+<div class="modal-box">
+<h3>Add Payment</h3>
+<p id="paymentStudent" class="small"></p>
+<input id="paymentAmount" type="number" placeholder="Amount to add" min="1">
+<div style="display:flex;gap:8px;margin-top:10px;">
+<button onclick="confirmPayment()">Confirm</button>
+<button class="secondary" onclick="closeModal('paymentModal')">Cancel</button>
+</div>
+</div>
+</div>
+
+<!-- History Modal -->
+<div id="historyModal" class="modal" aria-hidden="true">
+<div class="modal-box">
+<h3>Payment History</h3>
+<p id="historyStudent" class="small"></p>
+<table class="history-table" style="width:100%;margin-top:8px;">
+<thead>
+<tr><th>Date</th><th>Amount</th></tr>
+</thead>
+<tbody id="historyBody"></tbody>
+</table>
+<div style="display:flex;gap:8px;margin-top:10px;">
+<button onclick="exportHistoryCSV()">Export History CSV</button>
+<button onclick="exportHistoryPDF()">Export History PDF</button>
+<button class="secondary" onclick="closeModal('historyModal')">Close</button>
+</div>
+</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+<!-- Firebase Modal -->
+<div id="firebaseModal" class="modal" aria-hidden="true">
+<div class="modal-box">
+<h3>Connect to Firebase (optional)</h3>
+<p class="small">
+To enable multi-device sync/backups, paste your Firebase config JSON (copy from Firebase console -> Project settings -> SDK snippet -> Config). Enable Firestore and Anonymous Auth first.
+</p>
+<textarea id="firebaseConfig" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'></textarea>
+<div style="display:flex;gap:8px;margin-top:10px;">
+<button onclick="connectFirebase()">Connect & Sync</button>
+<button class="secondary" onclick="closeModal('firebaseModal')">Cancel</button>
+</div>
+<p id="firebaseMsg" class="small"></p>
+</div>
+</div>
+
+
+<script>
+// ================================
+// Password + Login System (Full JS)
+// ================================
+
+// Default password (persistent across sessions unless changed)
+// If you want it also cleared when browser closes, use sessionStorage instead.
+let currentPassword = localStorage.getItem('studentAppPassword') || 'SADR@2025';
+
+// Elements
+const loginOverlay = document.getElementById('loginOverlay');
+const loginInput = document.getElementById('loginPassword');
+const toggleEye = document.getElementById('toggleEye');
+const loginBtn = document.getElementById('loginBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const forgotPassword = document.getElementById('forgotPassword');
+const changePasswordModal = document.getElementById('changePasswordModal');
+const newPasswordInput = document.getElementById('newPassword');
+const toggleEyeNew = document.getElementById('toggleEyeNew');
+
+// On load → check session login state
+window.addEventListener('load', () => {
+const loggedIn = sessionStorage.getItem('studentAppLoggedIn');
+if (loggedIn === 'true') {
+showLogout(); // already logged in this browser session
+} else {
+hideLogout(); // ask login
+}
+});
+
+// ==================
+// UI State Functions
+// ==================
+function showLogout() {
+logoutBtn.style.display = 'block';
+loginOverlay.style.display = 'none';
+sessionStorage.setItem('studentAppLoggedIn',
+'true'); // session flag
+}
+
+function hideLogout() {
+logoutBtn.style.display = 'none';
+loginOverlay.style.display = 'flex';
+sessionStorage.removeItem('studentAppLoggedIn');
+}
+
+// ==================
+// Eye Toggle Buttons
+// ==================
+toggleEye.addEventListener('click', () => {
+if (loginInput.type === 'password') {
+loginInput.type = 'text';
+toggleEye.textContent = '🙈';
+} else {
+loginInput.type = 'password';
+toggleEye.textContent = '👁️';
+}
+});
+
+toggleEyeNew.addEventListener('click', () => {
+if (newPasswordInput.type === 'password') {
+newPasswordInput.type = 'text';
+toggleEyeNew.textContent = '🙈';
+} else {
+newPasswordInput.type = 'password';
+toggleEyeNew.textContent = '👁️';
+}
+});
+
+// ==================
+// Password Change
+// ==================
+function confirmPasswordChange() {
+const np = newPasswordInput.value.trim();
+if (!np) return alert('Enter new password');
+currentPassword = np;
+localStorage.setItem('studentAppPassword', currentPassword);
+closeModal('changePasswordModal');
+alert('Password changed successfully');
+newPasswordInput.value = '';
+}
+
+// ==================
+// Login / Logout
+// ==================
+loginBtn.addEventListener('click', () => {
+if (loginInput.value === currentPassword) {
+showLogout();
+} else {
+alert('Incorrect password');
+}
+});
+
+logoutBtn.addEventListener('click', () => {
+hideLogout();
+loginInput.value = '';
+loginInput.focus();
+});
+
+// ==================
+// Forgot Password
+// ==================
+forgotPassword.addEventListener('click', () => {
+const code = prompt('Enter the code to reset password:');
+if (code === '8720') {
+openModal('changePasswordModal');
+} else {
+alert('Invalid code');
+}
+});
+
+// ==================
+// Modal Controls
+// ==================
+function openModal(id) {
+const modal = document.getElementById(id);
+modal.style.zIndex = 10001;
+modal.classList.add('open');
+}
+
+function closeModal(id) {
+const modal = document.getElementById(id);
+modal.classList.remove('open');
+}
+</script>
+<script type="text/javascript" charset="utf-8">
+let students = JSON.parse(localStorage.getItem('students') || '[]');
+let currentPaymentId = null;
+
+function saveToLocalStorage() {
+localStorage.setItem('students',
+JSON.stringify(students));
+}
+
+function escapeHtml(text = '') {
+return String(text).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot; ',"'":'&#39;'}[m]));
+}
+
+function renderTable(list = students) {
+const tbody = document.querySelector('#studentTable tbody');
+tbody.innerHTML = '';
+list.forEach(s => {
+const remaining = s.totalAmount - s.paidAmount;
+const tr = document.createElement('tr');
+tr.innerHTML = `
+<td>${escapeHtml(s.name)}</td>
+<td>${escapeHtml(s.rollNo)}</td>
+<td>${escapeHtml(s.className)}</td>
+<td>${escapeHtml(s.parentName)}</td>
+<td>${escapeHtml(s.contactNumber)}</td>
+<td>${escapeHtml(s.applicationType)}</td>
+<td>₹${s.totalAmount}</td>
+<td>₹${s.paidAmount}</td>
+<td>₹${remaining}</td>
+<td class="actions">
+<button onclick="editStudent('${s.id}')">Edit</button>
+<button onclick="deleteStudent('${s.id}')">Delete</button>
+<button onclick="generatePDF('${s.id}')">Receipt PDF</button>
+<button onclick="openPaymentModal('${s.id}')">Add Payment</button>
+<button onclick="viewHistory('${s.id}')">View History</button>
+</td>`;
+tbody.appendChild(tr);
+});
+document.getElementById('totalStudents').innerText = list.length;
+document.getElementById('totalCollected').innerText = list.reduce((a, s)=>a+s.paidAmount, 0);
+document.getElementById('totalPending').innerText = list.reduce((a, s)=>a+(s.totalAmount-s.paidAmount), 0);
+saveToLocalStorage();
+}
+
+// Form submit
+document.getElementById('studentForm').addEventListener('submit', function(e) {
+e.preventDefault();
+const id = document.getElementById('studentId').value || Date.now().toString();
+const student = {
+id,
+name: document.getElementById('name').value.trim(),
+rollNo: document.getElementById('rollNo').value.trim(),
+className: document.getElementById('className').value.trim(),
+parentName: document.getElementById('parentName').value.trim(),
+contactNumber: document.getElementById('contactNumber').value.trim(),
+applicationType: Array.from(select.selectedOptions).map(o => o.value).join(', '),
+totalAmount: Number(document.getElementById('totalAmount').value || 0),
+paidAmount: Number(document.getElementById('paidAmount').value || 0),
+payments: []
+};
+const existing = students.find(s => s.id === id);
+if (existing) {
+student.payments = existing.payments || [];
+students = students.map(s => s.id === id?student: s);
+} else {
+if (student.paidAmount > 0) student.payments.push({
+date: new Date().toLocaleString(), amount: student.paidAmount
+});
+students.push(student);
+}
+
+// Reset form fields
+this.reset();
+document.getElementById('studentId').value = '';
+document.getElementById('formTitle').innerText = 'Add New Student';
+
+// RESET multi-select applied applications
+updateMultiSelectDisplay([]);
+
+renderTable();
+});
+// Delete student
+function deleteStudent(id) {
+if (!confirm('Are you sure?')) return;
+students = students.filter(s => s.id !== id);
+renderTable();
+}
+
+// Filters
+function applyFilters() {
+const status = document.getElementById('statusFilter').value;
+let filtered = [...students];
+if (status !== 'all') {
+filtered = filtered.filter(s => {
+const rem = s.totalAmount - s.paidAmount;
+if (status === 'paid') return rem === 0;
+if (status === 'partial') return rem > 0 && rem < s.totalAmount;
+if (status === 'pending') return rem === s.totalAmount;
+});
+}
+const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+if (q) {
+filtered = filtered.filter(s => s.name.toLowerCase().includes(q) || s.rollNo.toLowerCase().includes(q) || s.className.toLowerCase().includes(q) || s.applicationType.toLowerCase().includes(q));
+}
+renderTable(filtered);
+}
+
+// Generate single receipt PDF
+function generatePDF(id) {
+const {
+jsPDF
+} = window.jspdf;
+const s = students.find(x => x.id === id); if (!s) return;
+const doc = new jsPDF();
+doc.setFontSize(16); doc.text("Student Fee Receipt", 105, 15, {
+align: "center"
+});
+doc.setFontSize(11); doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 25);
+doc.autoTable({
+startY: 35,
+head: [['Field', 'Details']],
+body: [
+['Name', s.name], ['Roll No', s.rollNo], ['Class', s.className],
+['Parent', s.parentName], ['Contact', s.contactNumber],
+['Application', s.applicationType],
+['Total Amount', `${s.totalAmount}`],
+['Paid Amount', `${s.paidAmount}`],
+['Remaining Amount', `${s.totalAmount-s.paidAmount}`]
+],
+theme: 'grid',
+headStyles: {
+fillColor: [0, 123, 255], textColor: 255
+},
+styles: {
+fontSize: 11, cellPadding: 4
+}
+});
+doc.text("This is a system-generated receipt.", 105, doc.lastAutoTable.finalY+15, {
+align: "center"
+});
+const safeName = s.name.replace(/[\/\\:*?"<>|]/g, '_');
+doc.save(`receipt_${safeName}_${s.rollNo}.pdf`);
+}
+
+// Generate all students PDF
+function generateAllPDF() {
+const {
+jsPDF
+} = window.jspdf;
+if (students.length === 0) {
+alert('No students to export'); return;
+}
+const doc = new jsPDF();
+doc.setFontSize(16); doc.text("All Students Fee Report", 105, 15, {
+align: "center"
+});
+doc.setFontSize(11); doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 25);
+const tableData = students.map(s => [s.name, s.rollNo, s.className, s.parentName, s.contactNumber, s.applicationType, `${s.totalAmount}`, `${s.paidAmount}`, `${s.totalAmount-s.paidAmount}`]);
+doc.autoTable({
+startY: 35,
+head: [['Name', 'Roll', 'Class', 'Parent', 'Contact', 'Application', 'Total', 'Paid', 'Remaining']],
+body: tableData,
+theme: 'grid',
+headStyles: {
+fillColor: [0, 123, 255], textColor: 255
+},
+styles: {
+fontSize: 10, cellPadding: 3
+}
+});
+const totalCollected = students.reduce((a, s)=>a+s.paidAmount, 0);
+const totalPending = students.reduce((a, s)=>a+(s.totalAmount-s.paidAmount), 0);
+doc.text(`Total Students: ${students.length} | Collected: ${totalCollected} | Pending: ${totalPending}`, 14, doc.lastAutoTable.finalY+10);
+doc.save(`all_students_${new Date().toISOString().split('T')[0]}.pdf`);
+}
+
+// Payment Modal
+function openPaymentModal(id) {
+currentPaymentId = id;
+const s = students.find(x => x.id === id);
+document.getElementById('paymentStudent').innerText = `${s.name} (${s.rollNo}) — Remaining: ${s.totalAmount - s.paidAmount}`;
+document.getElementById('paymentAmount').value = '';
+openModal('paymentModal');
+}
+function confirmPayment() {
+const amt = Number(document.getElementById('paymentAmount').value);
+if (amt <= 0) return alert('Enter valid amount');
+const s = students.find(x => x.id === currentPaymentId);
+s.paidAmount += amt;
+s.payments.push({
+date: new Date().toLocaleString(), amount: amt
+});
+renderTable();
+closeModal('paymentModal');
+}
+
+// Payment history
+function viewHistory(id) {
+currentPaymentId = id;
+const student = students.find(s => s.id === id);
+if (!student) return;
+
+const tbody = document.getElementById("historyBody");
+tbody.innerHTML = "";
+
+let totalPaid = 0;
+student.payments.forEach(p => {
+totalPaid += p.amount;
+const tr = document.createElement("tr");
+tr.innerHTML = `<td>${p.date}</td><td>₹${p.amount}</td>`;
+tbody.appendChild(tr);
+});
+
+// Add total row
+const tfoot = document.createElement("tr");
+tfoot.innerHTML = `<td><strong>Total Paid</strong></td><td><strong>₹${totalPaid}</strong></td>`;
+tbody.appendChild(tfoot);
+
+document.getElementById("historyStudent").innerText = `${student.name} (${student.rollNo})`;
+
+// Open modal
+openModal('historyModal');
+
+// Scroll to bottom
+const modalBox = document.querySelector('#historyModal .modal-box');
+modalBox.scrollTop = modalBox.scrollHeight;
+}
+// Export history CSV
+function exportHistoryCSV() {
+if (!currentPaymentId) return;
+const student = students.find(s => s.id === currentPaymentId);
+if (!student || !student.payments) return;
+
+let csv = "Date,Amount\n";
+student.payments.forEach(p => {
+csv += `${p.date},${p.amount}\n`;
+});
+
+const blob = new Blob([csv], {
+type: "text/csv"
+});
+const a = document.createElement("a");
+a.href = URL.createObjectURL(blob);
+a.download = `${student.name}_history.csv`;
+a.click();
+}
+function exportHistoryPDF() {
+if (!currentPaymentId) return;
+const student = students.find(s => s.id === currentPaymentId);
+if (!student || !student.payments) return;
+
+const totalPaid = student.payments.reduce((a, p) => a + p.amount, 0);
+
+const win = window.open("", "_blank");
+win.document.write(`
+<html>
+<head>
+<title>${student.name} Payment History</title>
+<style>
+body { font-family: Arial, sans-serif; padding: 20px; }
+h2 { text-align: center; margin-bottom: 20px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { border: 1px solid #333; padding: 8px; text-align: left; }
+th { background: #f0f0f0; }
+tfoot td { font-weight: bold; }
+</style>
+</head>
+<body>
+<h2>Payment History - ${student.name} (${student.rollNo})</h2>
+<table>
+<thead>
+<tr><th>Date</th><th>Amount</th></tr>
+</thead>
+<tbody>
+${student.payments.map(p => `<tr><td>${p.date}</td><td>₹${p.amount}</td></tr>`).join("")}
+</tbody>
+<tfoot>
+<tr><td>Total Paid</td><td>₹${totalPaid}</td></tr>
+</tfoot>
+</table>
+</body>
+</html>
+`);
+win.document.close();
+win.print();
+}
+// Close modal
+function closeModal(id) {
+const modal = document.getElementById(id);
+modal.classList.remove('open');
+}
+
+// Initial render
+renderTable();
+
+// Export CSV
+function exportToExcel() {
+if (students.length === 0) return alert('No data');
+const rows = [['Name',
+'Roll',
+'Class',
+'Parent',
+'Contact',
+'Application',
+'Total',
+'Paid',
+'Remaining']];
+students.forEach(s => {
+rows.push([s.name, s.rollNo, s.className, s.parentName, s.contactNumber, s.applicationType, s.totalAmount, s.paidAmount, s.totalAmount-s.paidAmount]);
+});
+const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+const blob = new Blob([csv], {
+type: 'text/csv'
+});
+const link = document.createElement('a');
+link.href = URL.createObjectURL(blob);
+link.download = `students_${new Date().toISOString().split('T')[0]}.csv`;
+link.click();
+}
+
+// Modal helpers
+function openModal(id) {
+document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+document.getElementById(id).classList.remove('open');
+}
+
+// Clear all
+function clearAllData() {
+if (confirm('Clear all data?')) {
+students = []; saveToLocalStorage(); renderTable();
+}
+}
+
+// Initialize
+renderTable();
+</script>
+</body>
+</html>

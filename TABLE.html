@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width,initial-scale=1.0">
+ <title>Student Fee Management</title>
+ <link rel="shortcut icon" href="SADR.png" type="image/x-icon" />
+ <style>
+  body {
+   font-family: Arial, sans-serif;
+   background: #f0f4f8;
+   margin: 0;
+   padding: 20px;
+  }
+  .card {
+background: #fff;
+padding: 18px;
+border-radius: 8px;
+box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+}
+  h1 {
+   text-align: center;
+   margin-bottom: 20px;
+  }
+  
+  .table-container {
+   overflow-x: auto;
+   background: #fff;
+   border-radius: 8px;
+   padding: 10px;
+   box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  }
+  table {
+   width: 100%;
+   border-collapse: collapse;
+   min-width: 900px;
+  }
+  th, td {
+   border: 1px solid #ccc;
+   padding: 8px;
+   text-align: center;
+  }
+  th {
+   background: #007bff;
+   color: #fff;
+   position: sticky;
+   top: 0;
+  }
+  button {
+   margin: 5px;
+   padding: 6px 10px;
+   background: #17a2b8;
+   color: #fff;
+   border: none;
+   border-radius: 6px;
+   cursor: pointer;
+  }
+  button.delete {
+   background: #dc3545;
+  }
+  button.receipt {
+   background: #28a745;
+  }
+  #summary {
+   margin-top: 10px;
+   font-weight: bold;
+  }
+  .modal {
+   display: none;
+   position: fixed;
+   top: 0;
+   left: 0;
+   width: 100%;
+   height: 100%;
+   background: rgba(0,0,0,0.5);
+   justify-content: center;
+   align-items: center;
+  }
+  .modal-content {
+   background: #fff;
+   padding: 20px;
+   border-radius: 8px;
+   max-width: 600px;
+   width: 90%;
+   max-height: 80%;
+   overflow-y: auto;
+  }
+  .close {
+   float: right;
+   cursor: pointer;
+   font-size: 18px;
+  }
+ </style>
+</head>
+<body>
+<div class="card">
+  <h1>Student Fee Management</h1>
+</div>
+<br /><br />
+
+ <div class="table-container">
+   <button onclick="downloadAllPDF()">Download All Students PDF</button>
+
+  <table id="studentTable">
+   <thead>
+    <tr>
+     <th>Name</th><th>Roll No</th><th>Class</th><th>Parent</th><th>Contact</th>
+     <th>Application</th><th>Total</th><th>Paid</th><th>Remaining</th><th>Actions</th>
+    </tr>
+   </thead>
+   <tbody></tbody>
+  </table>
+ </div>
+
+ <div id="summary"></div>
+
+ <!-- Payment history modal -->
+ <div id="historyModal" class="modal">
+  <div class="modal-content">
+   <span class="close" onclick="closeHistory()">&times;</span>
+   <h3>Payment History</h3>
+   <ul id="historyList"></ul>
+  </div>
+ </div>
+
+ <!-- jsPDF -->
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+ <!-- Firebase SDK -->
+ <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+ <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+ <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+ <script>
+  // Firebase config
+  const firebaseConfig = {
+   apiKey: "YOUR_API_KEY",
+   authDomain: "YOUR_PROJECT.firebaseapp.com",
+   projectId: "YOUR_PROJECT_ID",
+   storageBucket: "YOUR_PROJECT.appspot.com",
+   messagingSenderId: "XXXX",
+   appId: "XXXX"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  firebase.auth().signInAnonymously().then(()=>console.log("Firebase auth OK")).catch(console.error);
+
+  // Load students from localStorage
+  let students = JSON.parse(localStorage.getItem('students') || '[]');
+
+  // Firestore listener
+  db.collection('students').onSnapshot(snapshot => {
+   if (snapshot.empty) {
+    console.log("Firestore empty, using localStorage");
+    students = JSON.parse(localStorage.getItem('students') || '[]');
+   } else {
+    students = [];
+    snapshot.forEach(doc => students.push(doc.data()));
+    localStorage.setItem('students', JSON.stringify(students));
+   }
+   renderTable();
+  });
+
+  function saveToLocalStorage() {
+   localStorage.setItem('students',
+    JSON.stringify(students));
+  }
+
+  // Render table
+  function renderTable() {
+   const tbody = document.querySelector('#studentTable tbody');
+   tbody.innerHTML = '';
+   let totalAmount = 0;
+   students.forEach(s => {
+    const remaining = s.totalAmount - s.paidAmount;
+    totalAmount += s.totalAmount;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+    <td>${s.name}</td>
+    <td>${s.rollNo}</td>
+    <td>${s.className}</td>
+    <td>${s.parentName}</td>
+    <td>${s.contactNumber}</td>
+    <td>${s.applicationType}</td>
+    <td>₹${s.totalAmount}</td>
+    <td>₹${s.paidAmount}</td>
+    <td>₹${remaining}</td>
+    <td>
+    <button class="receipt" onclick='downloadReceipt("${s.id}")'>Receipt</button>
+    <button onclick='showHistory("${s.id}")'>History</button>
+    <button onclick='downloadHistoryPDF("${s.id}")'>History PDF</button>
+
+    </td>
+    `;
+    tbody.appendChild(tr);
+   });
+   document.getElementById('summary').innerText = `Total Students: ${students.length} | Total Amount: ₹${totalAmount}`;
+  }
+
+  // Download all students PDF
+  function downloadAllPDF() {
+   const {
+    jsPDF
+   } = window.jspdf;
+   if (students.length === 0) {
+    alert('No students'); return;
+   }
+   const doc = new jsPDF();
+   doc.setFontSize(16); doc.text("All Students Fee Report", 105, 15, {
+    align: "center"
+   });
+   doc.setFontSize(11); doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 25);
+   const tableData = students.map(s => [
+    s.name, s.rollNo, s.className, s.parentName, s.contactNumber, s.applicationType,
+    `${s.totalAmount}`, `${s.paidAmount}`, `${s.totalAmount - s.paidAmount}`
+   ]);
+   doc.autoTable({
+    startY: 35,
+    head: [['Name', 'Roll', 'Class', 'Parent', 'Contact', 'Application', 'Total', 'Paid', 'Remaining']],
+    body: tableData,
+    theme: 'grid',
+    headStyles: {
+     fillColor: [0, 123, 255], textColor: 255
+    },
+    styles: {
+     fontSize: 10, cellPadding: 3
+    }
+   });
+   doc.save(`all_students_${new Date().toISOString().split('T')[0]}.pdf`);
+  }
+
+  // Download receipt PDF
+  function downloadReceipt(id) {
+   const student = students.find(s => s.id === id);
+   if (!student) return;
+   const {
+    jsPDF
+   } = window.jspdf;
+   const doc = new jsPDF();
+   doc.setFontSize(16); doc.text("Fee Receipt", 105, 15, {
+    align: 'center'
+   });
+   doc.setFontSize(12);
+   doc.text(`Name: ${student.name}`, 14, 25);
+   doc.text(`Roll No: ${student.rollNo}`, 14, 32);
+   doc.text(`Class: ${student.className}`, 14, 39);
+   doc.text(`Date: ${new Date().toLocaleDateString()}`, 150, 25);
+
+   doc.autoTable({
+    startY: 50,
+    head: [['Total Amount', 'Paid Amount', 'Remaining']],
+    body: [[`${student.totalAmount}`, `${student.paidAmount}`, `${student.totalAmount - student.paidAmount}`]],
+    theme: 'grid',
+    headStyles: {
+     fillColor: [0, 123, 255], textColor: 255
+    },
+    styles: {
+     fontSize: 12, cellPadding: 4
+    }
+   });
+   doc.save(`receipt_${student.name}_${student.rollNo}.pdf`);
+  }
+
+  // Show payment history modal
+  function showHistory(id) {
+   const student = students.find(s => s.id === id);
+   if (!student) return;
+   const history = student.payments || [];
+   const ul = document.getElementById('historyList');
+   ul.innerHTML = '';
+   if (history.length === 0) {
+    ul.innerHTML = '<li>No payments yet</li>';
+   } else history.forEach(p => ul.innerHTML += `<li>${p.date}: ${p.amount}</li>`);
+   document.getElementById('historyModal').style.display = 'flex';
+  }
+  function closeHistory() {
+   document.getElementById('historyModal').style.display = 'none';
+  }
+
+  // Download history PDF
+  function downloadHistoryPDF(id) {
+   const student = students.find(s => s.id === id);
+   if (!student) return;
+   const history = student.payments || [];
+   const {
+    jsPDF
+   } = window.jspdf;
+   const doc = new jsPDF();
+   doc.setFontSize(16); doc.text("Payment History", 105, 15, {
+    align: 'center'
+   });
+   doc.setFontSize(12);
+   doc.text(`Name: ${student.name}`, 14, 25);
+   doc.text(`Roll No: ${student.rollNo}`, 14, 32);
+   doc.text(`Class: ${student.className}`, 14, 39);
+   if (history.length === 0) {
+    doc.text("No payments yet", 14, 50);
+   } else {
+    const tableData = history.map(p => [p.date, `${p.amount}`]);
+    doc.autoTable({
+     startY: 50,
+     head: [['Date', 'Amount']],
+     body: tableData,
+     theme: 'grid',
+     headStyles: {
+      fillColor: [0, 123, 255], textColor: 255
+     },
+     styles: {
+      fontSize: 12, cellPadding: 4
+     }
+    });
+   }
+   doc.save(`history_${student.name}_${student.rollNo}.pdf`);
+  }
+
+
+  // Auto refresh table
+  setInterval(renderTable, 3000);
+  renderTable();
+ </script>
+</body>
+</html>
