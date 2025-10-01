@@ -116,7 +116,7 @@ box-shadow: 0 4px 14px rgba(0,0,0,0.06);
   <table id="studentTable">
    <thead>
     <tr>
-     <th>Name</th><th>Roll No</th><th>Class</th><th>Parent</th><th>Contact</th>
+     <th>Name</th><th>Roll No</th><th>Class</th><th>Parent</th>
      <th>Application</th><th>Total</th><th>Paid</th><th>Remaining</th><th>Actions</th>
     </tr>
    </thead>
@@ -193,7 +193,6 @@ box-shadow: 0 4px 14px rgba(0,0,0,0.06);
     <td>${s.rollNo}</td>
     <td>${s.className}</td>
     <td>${s.parentName}</td>
-    <td>${s.contactNumber}</td>
     <td>${s.applicationType}</td>
     <td>₹${s.totalAmount}</td>
     <td>₹${s.paidAmount}</td>
@@ -224,12 +223,12 @@ box-shadow: 0 4px 14px rgba(0,0,0,0.06);
    });
    doc.setFontSize(11); doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 25);
    const tableData = students.map(s => [
-    s.name, s.rollNo, s.className, s.parentName, s.contactNumber, s.applicationType,
+    s.name, s.rollNo, s.className, s.parentName, s.applicationType,
     `${s.totalAmount}`, `${s.paidAmount}`, `${s.totalAmount - s.paidAmount}`
    ]);
    doc.autoTable({
     startY: 35,
-    head: [['Name', 'Roll', 'Class', 'Parent', 'Contact', 'Application', 'Total', 'Paid', 'Remaining']],
+    head: [['Name', 'Roll', 'Class', 'Parent', 'Application', 'Total', 'Paid', 'Remaining']],
     body: tableData,
     theme: 'grid',
     headStyles: {
