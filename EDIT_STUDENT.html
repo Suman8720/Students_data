@@ -5,18 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Student Fee Management — Local + Firebase Sync</title>
 <link rel="shortcut icon" href="SADR.png" type="image/x-icon" />
- <script>
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyCHSx5l47cvGFfn7h5sU_z1sfgNv9gEhwo",
-  authDomain: "sadr-68405.firebaseapp.com",
-  projectId: "sadr-68405",
-  storageBucket: "sadr-68405.firebasestorage.app",
-  messagingSenderId: "625001395317",
-  appId: "1:625001395317:web:c480c268d942312fc7f43c",
-  measurementId: "G-FE7Y4X9L6C"
-};
- </script>
 <style>
 body {
 font-family: Arial, sans-serif;
@@ -538,40 +526,100 @@ To enable multi-device sync/backups, paste your Firebase config JSON (copy from 
  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+ 
 <script>
- / Firebase config
-  const firebaseConfig = {
-   apiKey: "YOUR_API_KEY",
-   authDomain: "YOUR_PROJECT.firebaseapp.com",
-   projectId: "YOUR_PROJECT_ID",
-   storageBucket: "YOUR_PROJECT.appspot.com",
-   messagingSenderId: "XXXX",
-   appId: "XXXX"
-  };
+<script>
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBxrcbOUMVOPqyN0kDZGv9bUQxtsYwp_aE",
+  authDomain: "suman-69c16.firebaseapp.com",
+  databaseURL: "https://suman-69c16-default-rtdb.firebaseio.com",
+  projectId: "suman-69c16",
+  storageBucket: "suman-69c16.firebasestorage.app",
+  messagingSenderId: "1017773884793",
+  appId: "1:1017773884793:web:0679aae717a0474210dba8",
+  measurementId: "G-HFNPHVN791"
+};
+  // ✅ Firebase Init
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
-  firebase.auth().signInAnonymously().then(()=>console.log("Firebase auth OK")).catch(console.error);
 
-  // Load students from localStorage
-  let students = JSON.parse(localStorage.getItem('students') || '[]');
+  // ✅ Anonymous Login (ज़रूरी है ताकि rules allow करें)
+  firebase.auth().signInAnonymously()
+    .then(() => console.log("✅ Firebase login successful"))
+    .catch(err => console.error("Auth error:", err));
 
-  // Firestore listener
-  db.collection('students').onSnapshot(snapshot => {
-   if (snapshot.empty) {
-    console.log("Firestore empty, using localStorage");
-    students = JSON.parse(localStorage.getItem('students') || '[]');
-   } else {
+  // ✅ Local variable
+  let students = [];
+
+  // ✅ Firestore से realtime listener
+  db.collection("students").onSnapshot(snapshot => {
     students = [];
-    snapshot.forEach(doc => students.push(doc.data()));
-    localStorage.setItem('students', JSON.stringify(students));
-   }
-   renderTable();
+    snapshot.forEach(doc => {
+      students.push({ id: doc.id, ...doc.data() });
+    });
+    localStorage.setItem("students", JSON.stringify(students));
+    renderTable();
   });
 
-  function saveToLocalStorage() {
-   localStorage.setItem('students',
-    JSON.stringify(students));
+  // ✅ Student जोड़ने का function
+  async function addStudent(student) {
+    try {
+      await db.collection("students").add(student);
+      console.log("Student added to Firestore");
+    } catch (err) {
+      console.error("Error adding student:", err);
+    }
   }
+
+  // ✅ Student delete करने का function
+  async function deleteStudent(id) {
+    try {
+      await db.collection("students").doc(id).delete();
+      console.log("Student deleted");
+    } catch (err) {
+      console.error("Error deleting student:", err);
+    }
+  }
+
+  // ✅ Table render (students array से)
+  function renderTable() {
+    const tbody = document.getElementById("studentTableBody");
+    tbody.innerHTML = "";
+    students.forEach((st, i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${i + 1}</td>
+        <td>${st.name || ""}</td>
+        <td>${st.rollNo || ""}</td>
+        <td>${st.class || ""}</td>
+        <td>${st.parent || ""}</td>
+        <td>${st.total || 0}</td>
+        <td>${st.paid || 0}</td>
+        <td>${(st.total || 0) - (st.paid || 0)}</td>
+        <td>
+          <button onclick="deleteStudent('${st.id}')">Delete</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ✅ Example: किसी form से नया student add करने पर
+  document.getElementById("addStudentForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const student = {
+      name: e.target.name.value,
+      rollNo: e.target.rollNo.value,
+      class: e.target.class.value,
+      parent: e.target.parent.value,
+      total: Number(e.target.total.value),
+      paid: Number(e.target.paid.value)
+    };
+    addStudent(student);
+    e.target.reset();
+  });
+</script>
 </script>
 <script>
 // ================================
